@@ -16,6 +16,9 @@ data Token = OpenBrace
              | ReturnKeyword
              | Int Int
              | Id String
+             | Minus
+             | Complement
+             | Neq
 
 lexer :: Token -> String
 lexer OpenBrace = "{"
@@ -26,6 +29,9 @@ lexer Semicolon = ";"
 lexer IntKeyword = "int"
 lexer CharKeyword = "char"
 lexer ReturnKeyword = "return"
+lexer Minus = "-"
+lexer Complement = "~"
+lexer Neq = "!"
 lexer (Id name) = name
 lexer (Int value) = show value
 
@@ -44,6 +50,9 @@ tokens input =
      '(' -> OpenParen:Lex.tokens rest
      ')' -> CloseParen:Lex.tokens rest
      ';' -> Semicolon:Lex.tokens rest
+     '-' -> Minus:Lex.tokens rest
+     '~' -> Complement:Lex.tokens rest
+     '!' -> Neq:Lex.tokens rest
      '1' -> getInteger input
      '2' -> getInteger input
      '3' -> getInteger input

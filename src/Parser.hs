@@ -50,4 +50,19 @@ parseStatements (Lex.CloseBrace:rest) = ([], rest)
 parseStatements [] = ([], [])
 
 parseExp :: [Token] -> (Exp, [Token])
-parseExp (Lex.Int i:rest) = (Ast.Exp(Ast.Int i), rest)
+parseExp (Lex.Int i:rest) = (Ast.ConstExp(Ast.Int i), rest)
+parseExp (Lex.Minus:rest) =
+  let
+    (exp, rest1) = parseExp rest
+  in
+    (Ast.UnopExp Ast.Negate exp, rest1)
+parseExp (Lex.Complement:rest) =
+  let
+    (exp, rest1) = parseExp rest
+  in
+    (Ast.UnopExp Ast.Complement exp, rest1)
+parseExp (Lex.Neq:rest) =
+  let
+    (exp, rest1) = parseExp rest
+  in
+    (Ast.UnopExp Ast.Not exp, rest1)

@@ -7,7 +7,8 @@ module Ast
       FuncParam(..),
       FuncBody(..),
       Exp(..),
-      Statement(..)
+      Statement(..),
+      Unop(..)
     ) where
 
 data Const = Int Int | Char String | String String
@@ -20,4 +21,5 @@ data FuncParam = FuncParam TypeDef Id
 newtype FuncBody = Body [Statement]
 data Statement = Return
                  | ReturnVal Exp
-newtype Exp = Exp Const
+data Exp = ConstExp Const | UnopExp Unop Exp
+data Unop = Negate | Complement | Not

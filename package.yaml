@@ -24,6 +24,7 @@ dependencies:
 - regex-posix
 - hspec
 - hlint
+- parsec
 
 library:
   source-dirs: src

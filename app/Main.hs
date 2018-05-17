@@ -5,16 +5,19 @@ import Generator
 import Parser
 import Lex
 
+import Text.ParserCombinators.Parsec
+
 main :: IO ()
 main = do
   args <- getArgs
   let filePath = head args
 
-  program <- readFile filePath
+  content <- readFile filePath
 
-  let tokenList = Lex.tokens program
-  let assembly = Generator.generate (Parser.parse tokenList)
-
-  print assembly
-
-  writeFile "program.s" assembly
+  case parse Parser.program "" content of
+    Left error -> print error
+    Right tokenList ->
+      let
+        assembly = Generator.generate tokenList
+      in
+        writeFile "program.s" assembly

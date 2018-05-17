@@ -44,3 +44,27 @@ generateExp (Ast.UnopExp Ast.Not exp) =
     expAssembly = generateExp exp
   in
     expAssembly ++ "cmpq $0, %rax\nmovq $0, %rax\nsete %al\n"
+generateExp (Ast.BinOpExp Ast.Plus left right) =
+  let
+    leftAssembly = generateExp left
+    rightAssembly = generateExp right
+  in
+    leftAssembly ++ "pushq %rax\n" ++ rightAssembly ++ "popq %rcx\n" ++ "addq %rcx, %rax\n"
+generateExp (Ast.BinOpExp Ast.Minus left right) =
+  let
+    leftAssembly = generateExp left
+    rightAssembly = generateExp right
+  in
+    leftAssembly ++ "pushq %rax\n" ++ rightAssembly ++ "popq %rcx\n" ++ "subq %rax, %rcx\nmovq %rcx, %rax"
+generateExp (Ast.BinOpExp Ast.Multi left right) =
+  let
+    leftAssembly = generateExp left
+    rightAssembly = generateExp right
+  in
+    leftAssembly ++ "pushq %rax\n" ++ rightAssembly ++ "popq %rcx\n" ++ "imulq %rcx, %rax\n"
+generateExp (Ast.BinOpExp Ast.Div left right) =
+  let
+    leftAssembly = generateExp left
+    rightAssembly = generateExp right
+  in
+    leftAssembly ++ "pushq %rax\n" ++ rightAssembly ++ "movq %rax, %rcx\npopq %rax\nmovq $0, %rdx\nidivq %rcx, %rax\n"

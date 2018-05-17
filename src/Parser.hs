@@ -67,38 +67,60 @@ statement = do
   -- return
   str <- lexeme $ string "return"
   -- expression
-  exp <- expression
+  exp <- lexeme expression
   semicolon
   return (Ast.ReturnVal exp)
 
 -- <exp> ::= <term> { ("+" | "-") <term> }
 expression :: Parser Ast.Exp
-expression = try expBinOp <|> expConst
+expression = try (expPlus <|> expMinus) <|> expConst
 -- <term>
 expConst :: Parser Ast.Exp
 expConst = term
 
 -- <term> { ("+" | "-") <term> }
-expBinOp :: Parser Ast.Exp
-expBinOp = do
+expPlus :: Parser Ast.Exp
+expPlus = do
+  whitespace
   leftTerms <- term
-  rightTerms <- try (many1 $ satisfy (== '+') *> term)
+  whitespace
+  rightTerms <- try (many1 $ satisfy (=='+') *> whitespace *> term)
   let binop = foldr (Ast.BinOpExp Ast.Plus) (last rightTerms) (leftTerms:init rightTerms)
+  whitespace
+  return binop
+expMinus :: Parser Ast.Exp
+expMinus = do
+  whitespace
+  leftTerms <- term
+  whitespace
+  rightTerms <- try (many1 $ satisfy (=='-') *> whitespace *> term)
+  let binop = foldr (Ast.BinOpExp Ast.Minus) (last rightTerms) (leftTerms:init rightTerms)
+  whitespace
   return binop
 
 -- <term> ::= <factor> { ("*" | "/") <factor> }
 term :: Parser Ast.Exp
-term = try termBinOp <|> termConst
+term = try termMulti <|> try termDiv <|> termConst
 -- <factor>
 termConst :: Parser Ast.Exp
-termConst = factor
+termConst = lexeme factor
 
 -- <factor> { ("*" | "/") <factor> }
-termBinOp :: Parser Ast.Exp
-termBinOp = do
-  leftFactor <- factor
-  rightFactors <- try (many1 $ satisfy (== '*') *> factor)
+termMulti :: Parser Ast.Exp
+termMulti = do
+  whitespace
+  leftFactor <- lexeme factor
+  rightFactors <- try (many1 $ satisfy (== '*') *> whitespace *> factor)
   let binop = foldr (Ast.BinOpExp Ast.Multi) (last rightFactors) (leftFactor:init rightFactors)
+  whitespace
+  return binop
+termDiv :: Parser Ast.Exp
+termDiv = do
+  whitespace
+  leftFactor <- lexeme factor
+  rightFactors <- try (many1 $ satisfy (== '/') *> whitespace *> factor)
+  let binop = foldr (Ast.BinOpExp Ast.Div) (last rightFactors) (leftFactor:init rightFactors)
+  whitespace
   return binop
 
 -- <factor> ::= "(" <exp> ")" | <unary_op> <factor> | <int>

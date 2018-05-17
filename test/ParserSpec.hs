@@ -24,7 +24,7 @@ spec = do
             i `shouldBe` 23
   describe "parse return 1+2;" $
     it "returns tokens" $ do
-      let i = parse Parser.statement "" "return 1+2;"
+      let i = parse Parser.statement "" "return 1 + 2;"
       case i of
         Left a -> error "left"
         Right a ->
@@ -52,7 +52,7 @@ spec = do
               [first, second, third] `shouldBe` [1, 2, 3]
   describe "parse return 1*2;" $
     it "returns tokens" $ do
-      let i = parse Parser.statement "" "return 1*2;"
+      let i = parse Parser.statement "" "return 1 * 2;"
       case i of
         Left a -> error "left"
         Right a ->

@@ -2,7 +2,6 @@ module ParserSpec (spec) where
 
 import Test.Hspec
 import Parser
-import Lex
 import Ast
 
 import Control.Applicative
@@ -38,16 +37,16 @@ spec = do
               [i, j] `shouldMatchList` [1, 2]
   describe "parse return 1+2+3;" $
     it "returns tokens" $ do
-      let i = parse Parser.statement "" "return 1+2+3;"
+      let i = parse Parser.statement "" "return 1+2-3;"
       case i of
         Left a -> error "left"
         Right a ->
           let
-            Ast.ReturnVal(Ast.BinOpExp Ast.Plus left right) = a
+            Ast.ReturnVal(Ast.BinOpExp Ast.Minus left right) = a
           in
             let
-              Ast.ConstExp(Ast.Int first) = left
-              Ast.BinOpExp Ast.Plus (Ast.ConstExp(Ast.Int second)) (Ast.ConstExp(Ast.Int third)) = right
+              Ast.BinOpExp Ast.Plus (Ast.ConstExp(Ast.Int first)) (Ast.ConstExp(Ast.Int second)) = left
+              Ast.ConstExp(Ast.Int third) = right
             in
               [first, second, third] `shouldBe` [1, 2, 3]
   describe "parse return 1*2;" $

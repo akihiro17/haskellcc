@@ -3,7 +3,6 @@ module GeneratorSpec (spec) where
 import Test.Hspec
 import Generator
 import Parser
-import Lex
 import Ast
 
 import Text.ParserCombinators.Parsec

@@ -3,7 +3,6 @@ module Main where
 import System.Environment
 import Generator
 import Parser
-import Lex
 
 import Text.ParserCombinators.Parsec
 

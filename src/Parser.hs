@@ -5,14 +5,13 @@ module Parser
     ) where
 
 import Ast
-import Lex
 
 import Text.Parsec.String (Parser)
 import Text.Parsec.Combinator
 import Data.Char
 import Control.Applicative
 import Control.Monad (void)
-import Text.Parsec (digit, letter, oneOf, satisfy, try, string)
+import Text.Parsec (digit, letter, oneOf, satisfy, try, string, char)
 
 lexeme :: Parser a -> Parser a
 lexeme p = do
@@ -71,57 +70,26 @@ statement = do
   semicolon
   return (Ast.ReturnVal exp)
 
--- <exp> ::= <term> { ("+" | "-") <term> }
 expression :: Parser Ast.Exp
-expression = try (expPlus <|> expMinus) <|> expConst
--- <term>
-expConst :: Parser Ast.Exp
-expConst = term
-
--- <term> { ("+" | "-") <term> }
-expPlus :: Parser Ast.Exp
-expPlus = do
-  whitespace
-  leftTerms <- term
-  whitespace
-  rightTerms <- try (many1 $ satisfy (=='+') *> whitespace *> term)
-  let binop = foldr (Ast.BinOpExp Ast.Plus) (last rightTerms) (leftTerms:init rightTerms)
-  whitespace
-  return binop
-expMinus :: Parser Ast.Exp
-expMinus = do
-  whitespace
-  leftTerms <- term
-  whitespace
-  rightTerms <- try (many1 $ satisfy (=='-') *> whitespace *> term)
-  let binop = foldr (Ast.BinOpExp Ast.Minus) (last rightTerms) (leftTerms:init rightTerms)
-  whitespace
-  return binop
+expression = term `chainl1` addOp
+  where
+    addOp = do
+      op <- char '+' <|> char '-'
+      many $ oneOf " \n\t"
+      case op of
+        '+' -> return (Ast.BinOpExp Ast.Plus)
+        '-' -> return (Ast.BinOpExp Ast.Minus)
 
 -- <term> ::= <factor> { ("*" | "/") <factor> }
 term :: Parser Ast.Exp
-term = try termMulti <|> try termDiv <|> termConst
--- <factor>
-termConst :: Parser Ast.Exp
-termConst = lexeme factor
-
--- <factor> { ("*" | "/") <factor> }
-termMulti :: Parser Ast.Exp
-termMulti = do
-  whitespace
-  leftFactor <- lexeme factor
-  rightFactors <- try (many1 $ satisfy (== '*') *> whitespace *> factor)
-  let binop = foldr (Ast.BinOpExp Ast.Multi) (last rightFactors) (leftFactor:init rightFactors)
-  whitespace
-  return binop
-termDiv :: Parser Ast.Exp
-termDiv = do
-  whitespace
-  leftFactor <- lexeme factor
-  rightFactors <- try (many1 $ satisfy (== '/') *> whitespace *> factor)
-  let binop = foldr (Ast.BinOpExp Ast.Div) (last rightFactors) (leftFactor:init rightFactors)
-  whitespace
-  return binop
+term = factor `chainl1` mulOp
+  where
+    mulOp = do
+      op <- char '*' <|> char '/'
+      many $ oneOf " \n\t"
+      case op of
+        '*' -> return (Ast.BinOpExp Ast.Multi)
+        '/' -> return (Ast.BinOpExp Ast.Div)
 
 -- <factor> ::= "(" <exp> ")" | <unary_op> <factor> | <int>
 factor :: Parser Ast.Exp

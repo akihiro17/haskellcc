@@ -1,7 +1,8 @@
 module Parser
     (
       program,
-      statement
+      statement,
+      expStatement
     ) where
 
 import Ast
@@ -56,13 +57,16 @@ program = do
 
   -- body
   lexeme openbrace
-  stmt <- lexeme statement
+  stmts <- try (many $ lexeme statement)
   lexeme closebrace
 
-  return (Ast.Prog(Ast.FuncDecl t main [] (Ast.Body [stmt])))
+  return (Ast.Prog(Ast.FuncDecl t main [] (Ast.Body stmts)))
 
 statement :: Parser Ast.Statement
-statement = do
+statement = try declareStatement <|> try returnStatement <|> expStatement
+
+returnStatement :: Parser Ast.Statement
+returnStatement = do
   -- return
   str <- lexeme $ string "return"
   -- expression
@@ -70,15 +74,53 @@ statement = do
   semicolon
   return (Ast.ReturnVal exp)
 
+expStatement :: Parser Ast.Statement
+expStatement = do
+  exp <- expression
+  semicolon
+  return (Ast.ExpStatement exp)
+
+declareStatement :: Parser Ast.Statement
+declareStatement = do
+  -- int
+  str <- lexeme $ string "int"
+  -- id
+  id <- lexeme identifier
+  -- =
+  whitespace
+  ch <- oneOf ";="
+  case ch of
+    ';' -> return (Ast.DeclareStatement id Nothing)
+    '=' -> do
+      whitespace
+      -- expression
+      exp <- lexeme expression
+      semicolon
+      return (Ast.DeclareStatement id (Just exp))
+
 expression :: Parser Ast.Exp
-expression = term `chainl1` addOp
+expression = try assignExpression <|> try additiveExpression
+
+additiveExpression :: Parser Ast.Exp
+additiveExpression = term `chainl1` addOp
   where
     addOp = do
       op <- char '+' <|> char '-'
-      many $ oneOf " \n\t"
+      whitespace
       case op of
         '+' -> return (Ast.BinOpExp Ast.Plus)
         '-' -> return (Ast.BinOpExp Ast.Minus)
+
+assignExpression :: Parser Ast.Exp
+assignExpression = do
+  -- id
+  id <- lexeme identifier
+  whitespace
+  char '='
+  whitespace
+  -- expression
+  exp <- lexeme expression
+  return (Ast.AssignExp id exp)
 
 -- <term> ::= <factor> { ("*" | "/") <factor> }
 term :: Parser Ast.Exp
@@ -86,14 +128,14 @@ term = factor `chainl1` mulOp
   where
     mulOp = do
       op <- char '*' <|> char '/'
-      many $ oneOf " \n\t"
+      whitespace
       case op of
         '*' -> return (Ast.BinOpExp Ast.Multi)
         '/' -> return (Ast.BinOpExp Ast.Div)
 
 -- <factor> ::= "(" <exp> ")" | <unary_op> <factor> | <int>
 factor :: Parser Ast.Exp
-factor = try factorUnop <|> factorInt
+factor = try factorUnop <|> try factorInt <|> factorVar
 
 factorUnop :: Parser Ast.Exp
 factorUnop = do
@@ -106,3 +148,6 @@ factorUnop = do
 
 factorInt :: Parser Ast.Exp
 factorInt = Ast.ConstExp <$> lexeme num
+
+factorVar :: Parser Ast.Exp
+factorVar = Ast.VarExp <$> lexeme identifier

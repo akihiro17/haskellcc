@@ -8,6 +8,7 @@ import Control.Applicative
 import Control.Monad
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
+import Text.ParserCombinators.Parsec.Error
 
 spec :: Spec
 spec = do
@@ -75,7 +76,22 @@ spec = do
             value `shouldBe` 1
   describe "parse program" $
     it "returns tokens" $ do
-      let i = parse Parser.program "" "int main(){return 2;}"
+      let i = parse Parser.program "" "int main() {int a = 2;a= a + 2; return a;}"
       case i of
         Left a -> error "parse errorn"
         Right a -> True
+  describe "parse multiple statement" $
+    it "returns tokens" $ do
+      let i = parse Parser.program "" "int main() {int a = 2;a= a + 3; return a;}"
+      case i of
+        Left a -> error "error"
+        Right a ->
+          let
+            Ast.Prog(Ast.FuncDecl t main params (Ast.Body stmts)) = a
+          in
+            let
+              Ast.DeclareStatement (Ast.Id id) (Just(Ast.ConstExp(Ast.Int initial))) = head stmts
+              ExpStatement (AssignExp (Id lvar) (BinOpExp Plus (VarExp (Id var)) (ConstExp (Int added)))) = stmts !! 1
+              Ast.ReturnVal(Ast.VarExp(Ast.Id returnVal)) = stmts !! 2
+            in
+              [id, show initial, show added, returnVal] `shouldBe` ["a", "2", "3", "a"]

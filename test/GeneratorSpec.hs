@@ -6,6 +6,7 @@ import Parser
 import Ast
 
 import Text.ParserCombinators.Parsec
+import qualified Data.Map as Map
 
 spec :: Spec
 spec = do
@@ -26,7 +27,7 @@ spec = do
         Left a -> error "parse error"
         Right statement ->
           let
-            assembly = Generator.generateStatement statement
+            assembly = Generator.generateStatements [statement] Map.empty
           in
             assembly `shouldBe` "movq $2, %rax\nret\n"
   describe "parseStatements" $
@@ -36,7 +37,7 @@ spec = do
         Left a -> error "parse error"
         Right statement ->
           let
-            assembly = Generator.generateStatement statement
+            assembly = Generator.generateStatements [statement] Map.empty
           in
             assembly `shouldBe` "movq $2, %rax\nneg %rax\nret\n"
   describe "parseStatements" $
@@ -46,7 +47,7 @@ spec = do
         Left a -> error "parse error"
         Right statement ->
           let
-            assembly = Generator.generateStatement statement
+            assembly = Generator.generateStatements [statement] Map.empty
           in
             assembly `shouldBe` "movq $2, %rax\nnot %rax\nret\n"
   describe "parseStatements" $
@@ -56,6 +57,6 @@ spec = do
         Left a -> error "parse error"
         Right statement ->
           let
-            assembly = Generator.generateStatement statement
+            assembly = Generator.generateStatements [statement] Map.empty
           in
             assembly `shouldBe` "movq $2, %rax\ncmpq $0, %rax\nmovq $0, %rax\nsete %al\nret\n"

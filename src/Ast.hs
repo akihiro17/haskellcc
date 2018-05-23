@@ -24,5 +24,11 @@ data FuncDecl = FuncDecl TypeDef Id [FuncParam]  FuncBody deriving (Show)
 data FuncParam = FuncParam TypeDef Id deriving (Show)
 newtype FuncBody = Body [Statement] deriving (Show)
 data Statement = Return
-                 | ReturnVal Exp deriving (Show)
-data Exp = ConstExp Const | UnopExp Unop Exp | BinOpExp BinOp Exp Exp deriving (Show)
+                 | ReturnVal Exp
+                 | ExpStatement Exp
+                 | DeclareStatement Id (Maybe Exp) deriving (Show)
+data Exp = ConstExp Const
+           | UnopExp Unop Exp
+           | BinOpExp BinOp Exp Exp
+           | AssignExp Id Exp
+           | VarExp Id deriving (Show)

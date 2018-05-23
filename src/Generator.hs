@@ -22,7 +22,7 @@ generate (Ast.Prog decl) =
 generateFunction :: Ast.FuncDecl -> String
 generateFunction (Ast.FuncDecl funcType (Ast.Id funcName) funcParams (Ast.Body statements)) =
   let
-    assembly = funcName ++ "\n" ++ funcName ++ ":\n"
+    assembly = funcName ++ "\n" ++ funcName ++ ":\npushq %rbp\nmovq %rsp, %rbp\n"
     statementsAssembly = generateStatements statements Map.empty
   in
     assembly ++ statementsAssembly
@@ -38,9 +38,18 @@ generateStatements [] varMap = ""
 -- <statement> ::= "return" <exp> ";" | <exp> ";" | "int" <id> [ = <exp>] ";"
 generateStatement :: Ast.Statement -> Map.Map String Int -> (String, Map.Map String Int)
 generateStatement (Ast.ReturnVal exp) varMap =
-  (generateExp exp varMap ++ "ret\n", varMap)
+  (generateExp exp varMap ++ "movq %rbp, %rsp\npopq %rbp\nret\n", varMap)
 generateStatement (Ast.ExpStatement exp) varMap =
   (generateExp exp varMap ++ "\n", varMap)
+generateStatement (Ast.DeclareStatement (Ast.Id id) exp) varMap =
+  let
+    size = Map.size varMap
+    varMap1 = Map.insert id (size - 8) varMap
+  in
+    case exp of
+      Nothing -> ("movq $0, %rax\npushq %rax\n", varMap1)
+      Just a ->
+        (generateExp a varMap ++ "\npushq %rax\n", varMap1)
 
 generateExp :: Ast.Exp -> Map.Map String Int -> String
 generateExp (Ast.ConstExp(Ast.Int value)) varMap = "movq $" ++ show value ++ ", %rax\n"
@@ -70,7 +79,7 @@ generateExp (Ast.BinOpExp Ast.Minus left right) varMap =
     leftAssembly = generateExp left varMap
     rightAssembly = generateExp right varMap
   in
-    leftAssembly ++ "pushq %rax\n" ++ rightAssembly ++ "popq %rcx\n" ++ "subq %rax, %rcx\nmovq %rcx, %rax"
+    leftAssembly ++ "pushq %rax\n" ++ rightAssembly ++ "popq %rcx\n" ++ "subq %rax, %rcx\nmovq %rcx, %rax\n"
 generateExp (Ast.BinOpExp Ast.Multi left right) varMap =
   let
     leftAssembly = generateExp left varMap
@@ -83,3 +92,10 @@ generateExp (Ast.BinOpExp Ast.Div left right) varMap =
     rightAssembly = generateExp right varMap
   in
     leftAssembly ++ "pushq %rax\n" ++ rightAssembly ++ "movq %rax, %rcx\npopq %rax\nmovq $0, %rdx\nidivq %rcx, %rax\n"
+generateExp (Ast.VarExp (Ast.Id id)) varMap =
+  let
+    offsetKey = Map.lookup id varMap
+  in
+    case offsetKey of
+      Nothing -> error "cannot find var"
+      Just offset -> ("movq %rax, " ++ show offset ++ "(%rbp)\n")

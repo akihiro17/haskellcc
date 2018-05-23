@@ -19,7 +19,7 @@ spec = do
           let
             assembly = Generator.generate tokenList
           in
-            assembly `shouldBe` ".globl main\nmain:\nmovq $2, %rax\nret\n"
+            assembly `shouldBe` ".globl main\nmain:\npushq %rbp\nmovq %rsp, %rbp\nmovq $2, %rax\nmovq %rbp, %rsp\npopq %rbp\nret\n"
   describe "parseStatements" $
     it "returns statements" $ do
       let i = parse Parser.statement "" "return 2;"
@@ -29,7 +29,7 @@ spec = do
           let
             assembly = Generator.generateStatements [statement] Map.empty
           in
-            assembly `shouldBe` "movq $2, %rax\nret\n"
+            assembly `shouldBe` "movq $2, %rax\nmovq %rbp, %rsp\npopq %rbp\nret\n"
   describe "parseStatements" $
     it "neg" $ do
       let i = parse Parser.statement "" "return -2;"
@@ -39,7 +39,7 @@ spec = do
           let
             assembly = Generator.generateStatements [statement] Map.empty
           in
-            assembly `shouldBe` "movq $2, %rax\nneg %rax\nret\n"
+            assembly `shouldBe` "movq $2, %rax\nneg %rax\nmovq %rbp, %rsp\npopq %rbp\nret\n"
   describe "parseStatements" $
     it "complement" $ do
       let i = parse Parser.statement "" "return ~2;"
@@ -49,7 +49,7 @@ spec = do
           let
             assembly = Generator.generateStatements [statement] Map.empty
           in
-            assembly `shouldBe` "movq $2, %rax\nnot %rax\nret\n"
+            assembly `shouldBe` "movq $2, %rax\nnot %rax\nmovq %rbp, %rsp\npopq %rbp\nret\n"
   describe "parseStatements" $
     it "not" $ do
       let i = parse Parser.statement "" "return !2;"
@@ -59,4 +59,14 @@ spec = do
           let
             assembly = Generator.generateStatements [statement] Map.empty
           in
-            assembly `shouldBe` "movq $2, %rax\ncmpq $0, %rax\nmovq $0, %rax\nsete %al\nret\n"
+            assembly `shouldBe` "movq $2, %rax\ncmpq $0, %rax\nmovq $0, %rax\nsete %al\nmovq %rbp, %rsp\npopq %rbp\nret\n"
+  describe "parseStatements" $
+    it "declare" $ do
+      let i = parse Parser.statement "" "int a;return a;"
+      case i of
+        Left a -> error "parse error"
+        Right statement ->
+          let
+            assembly = Generator.generateStatements [statement] Map.empty
+          in
+            assembly `shouldBe` "movq $0, %rax\npushq %rax\n"

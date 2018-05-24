@@ -44,7 +44,7 @@ generateStatement (Ast.ExpStatement exp) varMap =
 generateStatement (Ast.DeclareStatement (Ast.Id id) exp) varMap =
   let
     size = Map.size varMap
-    varMap1 = Map.insert id (size - 8) varMap
+    varMap1 = Map.insert id (-size*8 - 8) varMap
   in
     case exp of
       Nothing -> ("movq $0, %rax\npushq %rax\n", varMap1)
@@ -98,4 +98,11 @@ generateExp (Ast.VarExp (Ast.Id id)) varMap =
   in
     case offsetKey of
       Nothing -> error "cannot find var"
-      Just offset -> ("movq %rax, " ++ show offset ++ "(%rbp)\n")
+      Just offset -> "movq " ++ show offset ++ "(%rbp), %rax\n"
+generateExp (Ast.AssignExp (Ast.Id id) exp) varMap =
+  let
+    offsetKey = Map.lookup id varMap
+  in
+    case offsetKey of
+      Nothing -> error "cannot find var"
+      Just offset -> generateExp exp varMap ++ "movq %rax, " ++ show offset ++ "(%rbp)\n"

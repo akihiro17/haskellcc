@@ -13,7 +13,7 @@ import Text.Parsec.Combinator
 import Data.Char
 import Control.Applicative
 import Control.Monad (void)
-import Text.Parsec (digit, letter, oneOf, satisfy, try, string, char)
+import Text.Parsec (digit, letter, oneOf, satisfy, try, string, char, optionMaybe)
 
 lexeme :: Parser a -> Parser a
 lexeme p = do
@@ -65,29 +65,53 @@ program = do
 
 -- <block-item> ::= <statement> | <declaration>
 blockItem :: Parser Ast.BlockItem
-blockItem = try declaration <|> try statement
+blockItem = try declarationItem <|> try statementItem
 
--- <statement> ::= "return" <exp> ";" | <exp> ";"
-statement :: Parser Ast.BlockItem
-statement = try returnStatement <|> expStatement
+statementItem :: Parser Ast.BlockItem
+statementItem = Ast.StatementItem <$> statement
 
-returnStatement :: Parser Ast.BlockItem
+declarationItem :: Parser Ast.BlockItem
+declarationItem = Ast.DeclarationItem <$> declaration
+
+-- <statement> ::= "return" <exp> ";" | <exp> ";" | "if" "(" <exp> ")" <statement> [ "else" <statement> ]
+statement :: Parser Ast.Statement
+statement = try returnStatement <|> try expStatement <|> try ifStatement
+
+returnStatement :: Parser Ast.Statement
 returnStatement = do
   -- return
   str <- lexeme $ string "return"
   -- expression
   exp <- lexeme expression
   semicolon
-  return (Ast.StatementItem (Ast.ReturnVal exp))
+  return (Ast.ReturnVal exp)
 
-expStatement :: Parser Ast.BlockItem
+expStatement :: Parser Ast.Statement
 expStatement = do
   exp <- expression
   semicolon
-  return (Ast.StatementItem (Ast.ExpStatement exp))
+  return (Ast.ExpStatement exp)
+
+ifStatement :: Parser Ast.Statement
+ifStatement = do
+  lexeme $ string "if"
+
+  lexeme openparen
+  exp <- lexeme expression
+  lexeme closeparen
+
+  body <- lexeme statement
+
+  ch <- optionMaybe (string "else")
+  case ch of
+    Nothing -> return (Ast.IfStatement exp body Nothing)
+    Just a -> do
+      whitespace
+      elseBody <- lexeme statement
+      return (Ast.IfStatement exp body (Just elseBody))
 
 -- <declaration> ::= "int" <id> [ = <exp> ] ";"
-declaration :: Parser Ast.BlockItem
+declaration :: Parser Ast.Declaration
 declaration = do
   -- int
   str <- lexeme $ string "int"
@@ -97,13 +121,13 @@ declaration = do
   whitespace
   ch <- oneOf ";="
   case ch of
-    ';' -> return (Ast.DeclarationItem (Ast.Declaration id Nothing))
+    ';' -> return  (Ast.Declaration id Nothing)
     '=' -> do
       whitespace
       -- expression
       exp <- lexeme expression
       semicolon
-      return (Ast.DeclarationItem (Ast.Declaration id (Just exp)))
+      return (Ast.Declaration id (Just exp))
 
 expression :: Parser Ast.Exp
 expression = try assignExpression <|> try additiveExpression

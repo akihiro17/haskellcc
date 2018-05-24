@@ -26,6 +26,7 @@ dependencies:
 - hspec
 - hlint
 - parsec
+- mtl
 
 library:
   source-dirs: src

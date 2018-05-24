@@ -19,7 +19,7 @@ spec = do
         Left a -> error "left"
         Right a ->
           let
-            Ast.StatementItem(Ast.ReturnVal(Ast.ConstExp(Ast.Int i))) = a
+            Ast.ReturnVal(Ast.ConstExp(Ast.Int i)) = a
           in
             i `shouldBe` 23
   describe "parse return 1+2;" $
@@ -29,7 +29,7 @@ spec = do
         Left a -> error "left"
         Right a ->
           let
-            Ast.StatementItem(Ast.ReturnVal(Ast.BinOpExp Ast.Plus left right)) = a
+            Ast.ReturnVal(Ast.BinOpExp Ast.Plus left right) = a
           in
             let
               Ast.ConstExp(Ast.Int i) = left
@@ -43,7 +43,7 @@ spec = do
         Left a -> error "left"
         Right a ->
           let
-            Ast.StatementItem(Ast.ReturnVal(Ast.BinOpExp Ast.Minus left right)) = a
+            Ast.ReturnVal(Ast.BinOpExp Ast.Minus left right) = a
           in
             let
               Ast.BinOpExp Ast.Plus (Ast.ConstExp(Ast.Int first)) (Ast.ConstExp(Ast.Int second)) = left
@@ -57,7 +57,7 @@ spec = do
         Left a -> error "left"
         Right a ->
           let
-            Ast.StatementItem(Ast.ReturnVal(Ast.BinOpExp Ast.Multi left right)) = a
+            Ast.ReturnVal(Ast.BinOpExp Ast.Multi left right) = a
           in
             let
               Ast.ConstExp(Ast.Int i) = left
@@ -71,7 +71,7 @@ spec = do
         Left a -> error "left"
         Right a ->
           let
-            Ast.StatementItem(Ast.ReturnVal(Ast.UnopExp Ast.Negate (Ast.ConstExp(Ast.Int value)))) = a
+            Ast.ReturnVal(Ast.UnopExp Ast.Negate (Ast.ConstExp(Ast.Int value))) = a
           in
             value `shouldBe` 1
   describe "parse program" $
@@ -95,3 +95,23 @@ spec = do
               Ast.StatementItem(Ast.ReturnVal(Ast.VarExp(Ast.Id returnVal))) = stmts !! 2
             in
               [id, show initial, show added, returnVal] `shouldBe` ["a", "2", "3", "a"]
+  describe "parse if statement" $
+    it "returns tokens" $ do
+      let i = parse Parser.statement "" "if (1) return 2;"
+      case i of
+        Left a -> error "parse error"
+        Right a ->
+          let
+            Ast.IfStatement (Ast.ConstExp(Ast.Int cond)) (Ast.ReturnVal(Ast.ConstExp(Ast.Int returnVal))) Nothing = a
+          in
+            [cond, returnVal] `shouldBe` [1, 2]
+  describe "parse if statement" $
+    it "returns tokens" $ do
+      let i = parse Parser.statement "" "if (1) return 2; else return 3;"
+      case i of
+        Left a -> error "parse error"
+        Right a ->
+          let
+            Ast.IfStatement (Ast.ConstExp(Ast.Int cond)) (Ast.ReturnVal(Ast.ConstExp(Ast.Int returnVal))) (Just (Ast.ReturnVal(Ast.ConstExp(Ast.Int elseVal)))) = a
+          in
+            [cond, returnVal, elseVal] `shouldBe` [1, 2, 3]

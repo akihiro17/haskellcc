@@ -28,7 +28,8 @@ newtype FuncBody = Body [BlockItem] deriving (Show)
 data BlockItem = StatementItem Statement | DeclarationItem Declaration deriving (Show)
 data Statement = Return
                  | ReturnVal Exp
-                 | ExpStatement Exp deriving (Show)
+                 | ExpStatement Exp
+                 | IfStatement Exp Statement (Maybe Statement) deriving (Show)
 data Declaration = Declaration Id (Maybe Exp) deriving (Show)
 data Exp = ConstExp Const
            | UnopExp Unop Exp

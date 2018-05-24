@@ -9,6 +9,7 @@ module Generator
 import Data.List
 import Ast
 import qualified Data.Map as Map
+import Control.Monad.State
 
 data VarMap = Map String Int
 
@@ -23,29 +24,49 @@ generateFunction :: Ast.FuncDecl -> String
 generateFunction (Ast.FuncDecl funcType (Ast.Id funcName) funcParams (Ast.Body blockItems)) =
   let
     assembly = funcName ++ "\n" ++ funcName ++ ":\npushq %rbp\nmovq %rsp, %rbp\n"
-    statementsAssembly = generateBlockItems blockItems Map.empty
+    statementsAssembly = generateBlockItems blockItems Map.empty 0
   in
     assembly ++ statementsAssembly
 
-generateBlockItems :: [Ast.BlockItem] -> Map.Map String Int -> String
-generateBlockItems (Ast.StatementItem stmt:rest) varMap =
+generateBlockItems :: [Ast.BlockItem] -> Map.Map String Int -> Int -> String
+generateBlockItems (Ast.StatementItem stmt:rest) varMap index =
   let
-    (asm, varMap1) = generateStatement stmt varMap
+    (asm, varMap1, newIndex) = generateStatement stmt varMap index
   in
-    asm ++ generateBlockItems rest varMap1
-generateBlockItems (Ast.DeclarationItem declaration:rest) varMap =
+    asm ++ generateBlockItems rest varMap1 newIndex
+generateBlockItems (Ast.DeclarationItem declaration:rest) varMap index =
   let
     (asm, varMap1) = generateDeclaration declaration varMap
   in
-    asm ++ generateBlockItems rest varMap1
-generateBlockItems [] varMap = ""
+    asm ++ generateBlockItems rest varMap1 index
+generateBlockItems [] varMap index = ""
 
--- <statement> ::= "return" <exp> ";" | <exp> ";" | "int" <id> [ = <exp>] ";"
-generateStatement :: Ast.Statement -> Map.Map String Int -> (String, Map.Map String Int)
-generateStatement (Ast.ReturnVal exp) varMap =
-  (generateExp exp varMap ++ "movq %rbp, %rsp\npopq %rbp\nret\n", varMap)
-generateStatement (Ast.ExpStatement exp) varMap =
-  (generateExp exp varMap ++ "\n", varMap)
+-- <statement> ::= "return" <exp> ";" | <exp> ";" | "if" "(" <exp> ")" <statement> [ "else" <statement> ]
+generateStatement :: Ast.Statement -> Map.Map String Int -> Int -> (String, Map.Map String Int, Int)
+generateStatement (Ast.ReturnVal exp) varMap index =
+  (generateExp exp varMap ++ "movq %rbp, %rsp\npopq %rbp\nret\n", varMap, index)
+generateStatement (Ast.ExpStatement exp) varMap index =
+  (generateExp exp varMap ++ "\n", varMap, index)
+
+--  cmpl $0, %eax ; check if EAX == 0
+--  je _branch    ; if EAX == 0, go to _branch
+--  movl $1, %eax
+--  jump _post_if
+-- _branch:
+--  movl $2, %eax
+-- _post_if
+generateStatement (Ast.IfStatement cond body elseBody) varMap index =
+  let
+    asmExp = generateExp cond varMap
+    (asmStatement, varMap1, newIndex1) = generateStatement body varMap index
+    (postLabel, newIndex2) = freeLabel newIndex1
+  in
+    case elseBody of
+      Nothing -> (asmExp ++ "cmpq $0, %rax\nje " ++ postLabel ++ "\n" ++ asmStatement ++ "jmp " ++ postLabel ++ "\n" ++ postLabel ++ ":\n", varMap1, newIndex2)
+      Just a -> do
+        let (label1, newIndex3) = freeLabel newIndex2
+        let (asmElseBody, varMap2, newIndex4) = generateStatement a varMap1 newIndex3
+        (asmExp ++ "cmpq $0, %rax\nje " ++ label1 ++ "\n" ++ asmStatement ++ "jmp " ++ postLabel ++ "\n" ++ label1 ++ ":\n" ++ asmElseBody ++ postLabel ++ ":\n", varMap2, newIndex4)
 
 generateDeclaration :: Ast.Declaration -> Map.Map String Int -> (String, Map.Map String Int)
 generateDeclaration (Ast.Declaration (Ast.Id id) exp) varMap =
@@ -113,3 +134,6 @@ generateExp (Ast.AssignExp (Ast.Id id) exp) varMap =
     case offsetKey of
       Nothing -> error "cannot find var"
       Just offset -> generateExp exp varMap ++ "movq %rax, " ++ show offset ++ "(%rbp)\n"
+
+freeLabel :: Int -> (String, Int)
+freeLabel index = ("_label" ++ show index, index + 1)

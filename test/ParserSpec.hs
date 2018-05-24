@@ -19,7 +19,7 @@ spec = do
         Left a -> error "left"
         Right a ->
           let
-            Ast.ReturnVal(Ast.ConstExp(Ast.Int i)) = a
+            Ast.StatementItem(Ast.ReturnVal(Ast.ConstExp(Ast.Int i))) = a
           in
             i `shouldBe` 23
   describe "parse return 1+2;" $
@@ -29,7 +29,7 @@ spec = do
         Left a -> error "left"
         Right a ->
           let
-            Ast.ReturnVal(Ast.BinOpExp Ast.Plus left right) = a
+            Ast.StatementItem(Ast.ReturnVal(Ast.BinOpExp Ast.Plus left right)) = a
           in
             let
               Ast.ConstExp(Ast.Int i) = left
@@ -43,7 +43,7 @@ spec = do
         Left a -> error "left"
         Right a ->
           let
-            Ast.ReturnVal(Ast.BinOpExp Ast.Minus left right) = a
+            Ast.StatementItem(Ast.ReturnVal(Ast.BinOpExp Ast.Minus left right)) = a
           in
             let
               Ast.BinOpExp Ast.Plus (Ast.ConstExp(Ast.Int first)) (Ast.ConstExp(Ast.Int second)) = left
@@ -57,7 +57,7 @@ spec = do
         Left a -> error "left"
         Right a ->
           let
-            Ast.ReturnVal(Ast.BinOpExp Ast.Multi left right) = a
+            Ast.StatementItem(Ast.ReturnVal(Ast.BinOpExp Ast.Multi left right)) = a
           in
             let
               Ast.ConstExp(Ast.Int i) = left
@@ -71,7 +71,7 @@ spec = do
         Left a -> error "left"
         Right a ->
           let
-            Ast.ReturnVal(Ast.UnopExp Ast.Negate (Ast.ConstExp(Ast.Int value))) = a
+            Ast.StatementItem(Ast.ReturnVal(Ast.UnopExp Ast.Negate (Ast.ConstExp(Ast.Int value)))) = a
           in
             value `shouldBe` 1
   describe "parse program" $
@@ -90,8 +90,8 @@ spec = do
             Ast.Prog(Ast.FuncDecl t main params (Ast.Body stmts)) = a
           in
             let
-              Ast.DeclareStatement (Ast.Id id) (Just(Ast.ConstExp(Ast.Int initial))) = head stmts
-              ExpStatement (AssignExp (Id lvar) (BinOpExp Plus (VarExp (Id var)) (ConstExp (Int added)))) = stmts !! 1
-              Ast.ReturnVal(Ast.VarExp(Ast.Id returnVal)) = stmts !! 2
+              Ast.DeclarationItem(Ast.Declaration (Ast.Id id) (Just(Ast.ConstExp(Ast.Int initial)))) = head stmts
+              Ast.StatementItem(ExpStatement (AssignExp (Id lvar) (BinOpExp Plus (VarExp (Id var)) (ConstExp (Int added))))) = stmts !! 1
+              Ast.StatementItem(Ast.ReturnVal(Ast.VarExp(Ast.Id returnVal))) = stmts !! 2
             in
               [id, show initial, show added, returnVal] `shouldBe` ["a", "2", "3", "a"]

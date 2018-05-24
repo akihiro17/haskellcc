@@ -1,6 +1,7 @@
 module Parser
     (
       program,
+      blockItem,
       statement,
       expStatement
     ) where
@@ -57,31 +58,37 @@ program = do
 
   -- body
   lexeme openbrace
-  stmts <- try (many $ lexeme statement)
+  stmts <- try (many $ lexeme blockItem)
   lexeme closebrace
 
   return (Ast.Prog(Ast.FuncDecl t main [] (Ast.Body stmts)))
 
-statement :: Parser Ast.Statement
-statement = try declareStatement <|> try returnStatement <|> expStatement
+-- <block-item> ::= <statement> | <declaration>
+blockItem :: Parser Ast.BlockItem
+blockItem = try declaration <|> try statement
 
-returnStatement :: Parser Ast.Statement
+-- <statement> ::= "return" <exp> ";" | <exp> ";"
+statement :: Parser Ast.BlockItem
+statement = try returnStatement <|> expStatement
+
+returnStatement :: Parser Ast.BlockItem
 returnStatement = do
   -- return
   str <- lexeme $ string "return"
   -- expression
   exp <- lexeme expression
   semicolon
-  return (Ast.ReturnVal exp)
+  return (Ast.StatementItem (Ast.ReturnVal exp))
 
-expStatement :: Parser Ast.Statement
+expStatement :: Parser Ast.BlockItem
 expStatement = do
   exp <- expression
   semicolon
-  return (Ast.ExpStatement exp)
+  return (Ast.StatementItem (Ast.ExpStatement exp))
 
-declareStatement :: Parser Ast.Statement
-declareStatement = do
+-- <declaration> ::= "int" <id> [ = <exp> ] ";"
+declaration :: Parser Ast.BlockItem
+declaration = do
   -- int
   str <- lexeme $ string "int"
   -- id
@@ -90,13 +97,13 @@ declareStatement = do
   whitespace
   ch <- oneOf ";="
   case ch of
-    ';' -> return (Ast.DeclareStatement id Nothing)
+    ';' -> return (Ast.DeclarationItem (Ast.Declaration id Nothing))
     '=' -> do
       whitespace
       -- expression
       exp <- lexeme expression
       semicolon
-      return (Ast.DeclareStatement id (Just exp))
+      return (Ast.DeclarationItem (Ast.Declaration id (Just exp)))
 
 expression :: Parser Ast.Exp
 expression = try assignExpression <|> try additiveExpression

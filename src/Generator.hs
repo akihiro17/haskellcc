@@ -3,7 +3,7 @@ module Generator
     generate,
     generateFunction,
     generateStatement,
-    generateStatements,
+    generateBlockItems,
   ) where
 
 import Data.List
@@ -20,20 +20,25 @@ generate (Ast.Prog decl) =
     assembly ++ generateFunction decl
 
 generateFunction :: Ast.FuncDecl -> String
-generateFunction (Ast.FuncDecl funcType (Ast.Id funcName) funcParams (Ast.Body statements)) =
+generateFunction (Ast.FuncDecl funcType (Ast.Id funcName) funcParams (Ast.Body blockItems)) =
   let
     assembly = funcName ++ "\n" ++ funcName ++ ":\npushq %rbp\nmovq %rsp, %rbp\n"
-    statementsAssembly = generateStatements statements Map.empty
+    statementsAssembly = generateBlockItems blockItems Map.empty
   in
     assembly ++ statementsAssembly
 
-generateStatements :: [Ast.Statement] -> Map.Map String Int -> String
-generateStatements (stmt:rest) varMap =
+generateBlockItems :: [Ast.BlockItem] -> Map.Map String Int -> String
+generateBlockItems (Ast.StatementItem stmt:rest) varMap =
   let
     (asm, varMap1) = generateStatement stmt varMap
   in
-    asm ++ generateStatements rest varMap1
-generateStatements [] varMap = ""
+    asm ++ generateBlockItems rest varMap1
+generateBlockItems (Ast.DeclarationItem declaration:rest) varMap =
+  let
+    (asm, varMap1) = generateDeclaration declaration varMap
+  in
+    asm ++ generateBlockItems rest varMap1
+generateBlockItems [] varMap = ""
 
 -- <statement> ::= "return" <exp> ";" | <exp> ";" | "int" <id> [ = <exp>] ";"
 generateStatement :: Ast.Statement -> Map.Map String Int -> (String, Map.Map String Int)
@@ -41,7 +46,9 @@ generateStatement (Ast.ReturnVal exp) varMap =
   (generateExp exp varMap ++ "movq %rbp, %rsp\npopq %rbp\nret\n", varMap)
 generateStatement (Ast.ExpStatement exp) varMap =
   (generateExp exp varMap ++ "\n", varMap)
-generateStatement (Ast.DeclareStatement (Ast.Id id) exp) varMap =
+
+generateDeclaration :: Ast.Declaration -> Map.Map String Int -> (String, Map.Map String Int)
+generateDeclaration (Ast.Declaration (Ast.Id id) exp) varMap =
   let
     size = Map.size varMap
     varMap1 = Map.insert id (-size*8 - 8) varMap

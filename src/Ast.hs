@@ -7,7 +7,9 @@ module Ast
       FuncParam(..),
       FuncBody(..),
       Exp(..),
+      BlockItem(..),
       Statement(..),
+      Declaration(..),
       BinOp(..),
       Unop(..)
     ) where
@@ -22,11 +24,12 @@ data Unop = Negate | Complement | Not deriving (Show)
 newtype Program = Prog FuncDecl deriving (Show)
 data FuncDecl = FuncDecl TypeDef Id [FuncParam]  FuncBody deriving (Show)
 data FuncParam = FuncParam TypeDef Id deriving (Show)
-newtype FuncBody = Body [Statement] deriving (Show)
+newtype FuncBody = Body [BlockItem] deriving (Show)
+data BlockItem = StatementItem Statement | DeclarationItem Declaration deriving (Show)
 data Statement = Return
                  | ReturnVal Exp
-                 | ExpStatement Exp
-                 | DeclareStatement Id (Maybe Exp) deriving (Show)
+                 | ExpStatement Exp deriving (Show)
+data Declaration = Declaration Id (Maybe Exp) deriving (Show)
 data Exp = ConstExp Const
            | UnopExp Unop Exp
            | BinOpExp BinOp Exp Exp

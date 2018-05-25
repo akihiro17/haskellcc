@@ -115,3 +115,9 @@ spec = do
             Ast.IfStatement (Ast.ConstExp(Ast.Int cond)) (Ast.ReturnVal(Ast.ConstExp(Ast.Int returnVal))) (Just (Ast.ReturnVal(Ast.ConstExp(Ast.Int elseVal)))) = a
           in
             [cond, returnVal, elseVal] `shouldBe` [1, 2, 3]
+  describe "parse compound statement" $
+    it "returns tokens" $ do
+      let i = parse Parser.program "" "int main() {int a = 2; {int a; a = 3;} return a;}"
+      case i of
+        Left a -> error "parse error"
+        Right a -> True

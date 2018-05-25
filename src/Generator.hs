@@ -11,8 +11,6 @@ import Ast
 import qualified Data.Map as Map
 import Control.Monad.State
 
-data VarMap = Map String Int
-
 generate :: Ast.Program -> String
 generate (Ast.Prog decl) =
   let
@@ -67,6 +65,14 @@ generateStatement (Ast.IfStatement cond body elseBody) varMap index =
         let (label1, newIndex3) = freeLabel newIndex2
         let (asmElseBody, varMap2, newIndex4) = generateStatement a varMap1 newIndex3
         (asmExp ++ "cmpq $0, %rax\nje " ++ label1 ++ "\n" ++ asmStatement ++ "jmp " ++ postLabel ++ "\n" ++ label1 ++ ":\n" ++ asmElseBody ++ postLabel ++ ":\n", varMap2, newIndex4)
+
+generateStatement (Ast.CompoundStatement blockItems) varMap index =
+  let
+    numberOfdeclaration = length [ x | x@(Ast.DeclarationItem _) <- blockItems ]
+    asm = generateBlockItems blockItems varMap index
+    deallocateAsm = unlines $ replicate numberOfdeclaration "popq %rdx"
+  in
+    (asm ++ deallocateAsm, varMap, index)
 
 generateDeclaration :: Ast.Declaration -> Map.Map String Int -> (String, Map.Map String Int)
 generateDeclaration (Ast.Declaration (Ast.Id id) exp) varMap =
@@ -137,3 +143,9 @@ generateExp (Ast.AssignExp (Ast.Id id) exp) varMap =
 
 freeLabel :: Int -> (String, Int)
 freeLabel index = ("_label" ++ show index, index + 1)
+
+uniqueLabel :: State Int String
+uniqueLabel = do
+  i <- get
+  put(i+1)
+  return ("_label" ++ show i)

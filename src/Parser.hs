@@ -73,9 +73,9 @@ statementItem = Ast.StatementItem <$> statement
 declarationItem :: Parser Ast.BlockItem
 declarationItem = Ast.DeclarationItem <$> declaration
 
--- <statement> ::= "return" <exp> ";" | <exp> ";" | "if" "(" <exp> ")" <statement> [ "else" <statement> ]
+-- <statement> ::= "return" <exp> ";" | <exp> ";" | "if" "(" <exp> ")" <statement> [ "else" <statement> ] | "{" { <block-item> } "}
 statement :: Parser Ast.Statement
-statement = try returnStatement <|> try expStatement <|> try ifStatement
+statement = try returnStatement <|> try expStatement <|> try ifStatement <|> try compoundStatement
 
 returnStatement :: Parser Ast.Statement
 returnStatement = do
@@ -109,6 +109,13 @@ ifStatement = do
       whitespace
       elseBody <- lexeme statement
       return (Ast.IfStatement exp body (Just elseBody))
+
+compoundStatement :: Parser Ast.Statement
+compoundStatement = do
+  lexeme openbrace
+  blockItems <- try (many $ lexeme blockItem)
+  lexeme closebrace
+  return (Ast.CompoundStatement blockItems)
 
 -- <declaration> ::= "int" <id> [ = <exp> ] ";"
 declaration :: Parser Ast.Declaration

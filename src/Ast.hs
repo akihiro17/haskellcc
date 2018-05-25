@@ -29,7 +29,8 @@ data BlockItem = StatementItem Statement | DeclarationItem Declaration deriving 
 data Statement = Return
                  | ReturnVal Exp
                  | ExpStatement Exp
-                 | IfStatement Exp Statement (Maybe Statement) deriving (Show)
+                 | IfStatement Exp Statement (Maybe Statement)
+                 | CompoundStatement [BlockItem] deriving (Show)
 data Declaration = Declaration Id (Maybe Exp) deriving (Show)
 data Exp = ConstExp Const
            | UnopExp Unop Exp

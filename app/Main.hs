@@ -5,6 +5,8 @@ import Generator
 import Parser
 
 import Text.ParserCombinators.Parsec
+import qualified Data.Map as Map
+import Control.Monad.State
 
 main :: IO ()
 main = do
@@ -17,6 +19,6 @@ main = do
     Left error -> print error
     Right tokenList ->
       let
-        assembly = Generator.generate tokenList
+        (assembly, _) = runState (Generator.generate tokenList) (Map.empty, 0)
       in
         writeFile "program.s" assembly

@@ -121,3 +121,9 @@ spec = do
       case i of
         Left a -> error "parse error"
         Right a -> True
+  describe "expression inside parentheses " $
+    it "returns Ast" $ do
+      let i = parse Parser.statement "" "return (2 + 3) * 2;"
+      case i of
+        Left a -> error "parse error"
+        Right a -> True

@@ -87,6 +87,13 @@ generateDeclaration (Ast.Declaration (Ast.Id id) exp) varMap =
 
 generateExp :: Ast.Exp -> Map.Map String Int -> String
 generateExp (Ast.ConstExp(Ast.Int value)) varMap = "movq $" ++ show value ++ ", %rax\n"
+generateExp (Ast.VarExp (Ast.Id id)) varMap =
+   let
+     offsetKey = Map.lookup id varMap
+   in
+     case offsetKey of
+       Nothing -> error "cannot find var"
+       Just offset -> "movq " ++ show offset ++ "(%rbp), %rax\n"
 generateExp (Ast.UnopExp Ast.Negate exp) varMap =
   let
     expAssembly = generateExp exp varMap
@@ -126,13 +133,30 @@ generateExp (Ast.BinOpExp Ast.Div left right) varMap =
     rightAssembly = generateExp right varMap
   in
     leftAssembly ++ "pushq %rax\n" ++ rightAssembly ++ "movq %rax, %rcx\npopq %rax\nmovq $0, %rdx\nidivq %rcx, %rax\n"
-generateExp (Ast.VarExp (Ast.Id id)) varMap =
+generateExp (Ast.BinOpExp Ast.Or left right) varMap =
   let
-    offsetKey = Map.lookup id varMap
+    leftAssembly = generateExp left varMap
+    rightAssembly = generateExp right varMap
   in
-    case offsetKey of
-      Nothing -> error "cannot find var"
-      Just offset -> "movq " ++ show offset ++ "(%rbp), %rax\n"
+   leftAssembly ++ "pushq %rax\n" ++ rightAssembly ++ "movq %rax, %rbx\npopq %rcx\norq %rcx, %rax\nmovq $0, %rax\nsetne %al\n"
+generateExp (Ast.BinOpExp Ast.And left right) varMap =
+  let
+    leftAssembly = generateExp left varMap
+    rightAssembly = generateExp right varMap
+  in
+   leftAssembly ++ "pushq %rax\n" ++ rightAssembly ++ "popq %rcx\ncmpq $0, %rcx\nsetne %cl\ncmpq $0, %rax\nsetne %al\nandb %cl, %al\n"
+generateExp (Ast.BinOpExp op left right) varMap =
+  leftAssembly ++ "pushq %rax\n" ++ rightAssembly ++ "movq %rax, %rbx\npopq %rcx\nmovq $0, %rax\ncmpq %rbx, %rcx\n" ++ setAsm ++ "\n"
+  where
+    leftAssembly = generateExp left varMap
+    rightAssembly = generateExp right varMap
+    setAsm = case op of
+      Ast.Eq -> "sete %al"
+      Ast.NotEq -> "setne %al"
+      Ast.Gt -> "setg %al"
+      Ast.Lt -> "setl %al"
+      Ast.Ge -> "setge %al"
+      Ast.Le -> "setle %al"
 generateExp (Ast.AssignExp (Ast.Id id) exp) varMap =
   let
     offsetKey = Map.lookup id varMap

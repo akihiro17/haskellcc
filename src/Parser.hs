@@ -136,8 +136,57 @@ declaration = do
       semicolon
       return (Ast.Declaration id (Just exp))
 
+-- <exp> ::= <id> "=" <exp> | <logical-or-exp>
+-- <logical-or-exp> ::= <logical-and-exp> { "||" <logical-and-exp> }
+-- <logical-and-exp> ::= <equality-exp> { "&&" <equality-exp> }
+-- <equality-exp> ::= <relational-exp> { ("!=" | "==") <relational-exp> }
+-- <relational-exp> ::= <additive-exp> { ("<" | ">" | "<=" | ">=") <additive-exp> }
+-- <additive-exp> ::= <term> { ("+" | "-") <term> }
+
 expression :: Parser Ast.Exp
-expression = try assignExpression <|> try additiveExpression
+expression = try assignExpression <|> try logicalOrExpression
+
+logicalOrExpression :: Parser Ast.Exp
+logicalOrExpression = logicalAndExpression `chainl1` logicalOrOp
+  where
+    logicalOrOp = do
+      op <- string "||"
+      whitespace
+      case op of
+        "||" -> return (Ast.BinOpExp Ast.Or)
+
+logicalAndExpression :: Parser Ast.Exp
+logicalAndExpression = equalityExpression `chainl1` logicalAndOp
+  where
+    logicalAndOp = do
+      op <- string "&&"
+      whitespace
+      case op of
+        "&&" -> return (Ast.BinOpExp Ast.And)
+
+equalityExpression :: Parser Ast.Exp
+equalityExpression = relationalExpression `chainl1` equalityOp
+  where
+    equalityOp = do
+      op <- string "==" <|> string "!="
+      whitespace
+      case op of
+        "==" -> return (Ast.BinOpExp Ast.Eq)
+        "!=" -> return (Ast.BinOpExp Ast.NotEq)
+
+relationalExpression :: Parser Ast.Exp
+relationalExpression = additiveExpression `chainl1` relationalOp
+  where
+    relationalOp = do
+      whitespace
+      op1 <- char '<' <|> char '>'
+      op2 <- optionMaybe (char '=')
+      whitespace
+      case op2 of
+        Nothing ->
+          if op1 == '>' then return (Ast.BinOpExp Ast.Gt) else return (Ast.BinOpExp Ast.Lt)
+        Just a ->
+          if op1 == '>' then return (Ast.BinOpExp Ast.Ge) else return (Ast.BinOpExp Ast.Le)
 
 additiveExpression :: Parser Ast.Exp
 additiveExpression = term `chainl1` addOp
@@ -171,9 +220,12 @@ term = factor `chainl1` mulOp
         '*' -> return (Ast.BinOpExp Ast.Multi)
         '/' -> return (Ast.BinOpExp Ast.Div)
 
--- <factor> ::= "(" <exp> ")" | <unary_op> <factor> | <int>
+-- <factor> ::= "(" <exp> ")" | <unary_op> <factor> | <int> | <id>
 factor :: Parser Ast.Exp
-factor = try factorUnop <|> try factorInt <|> factorVar
+factor = try factorExpression <|> try factorUnop <|> try factorInt <|> factorVar
+
+factorExpression :: Parser Ast.Exp
+factorExpression = lexeme openparen >> lexeme expression >>= \exp -> lexeme closeparen >> return exp
 
 factorUnop :: Parser Ast.Exp
 factorUnop = do

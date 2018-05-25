@@ -4,7 +4,7 @@ compiler=$1
 
 echo $compiler
 
-for prog in `ls test/valid/**.c 2>/dev/null`; do
+for prog in `find test/valid/ -name "*.c" 2>/dev/null`; do
   gcc -w $prog
   ./a.out
   expected_exit_code=$?

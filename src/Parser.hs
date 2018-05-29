@@ -136,7 +136,8 @@ declaration = do
       semicolon
       return (Ast.Declaration id (Just exp))
 
--- <exp> ::= <id> "=" <exp> | <logical-or-exp>
+-- <exp> ::= <id> "=" <exp> | <conditional-exp>
+-- <conditional-exp> ::= <logical-or-exp> | <logical-or-exp> "?" <exp> ":" <conditional-exp>
 -- <logical-or-exp> ::= <logical-and-exp> { "||" <logical-and-exp> }
 -- <logical-and-exp> ::= <equality-exp> { "&&" <equality-exp> }
 -- <equality-exp> ::= <relational-exp> { ("!=" | "==") <relational-exp> }
@@ -144,7 +145,18 @@ declaration = do
 -- <additive-exp> ::= <term> { ("+" | "-") <term> }
 
 expression :: Parser Ast.Exp
-expression = try assignExpression <|> try logicalOrExpression
+expression = try assignExpression <|> try conditionalExpression
+
+conditionalExpression :: Parser Ast.Exp
+conditionalExpression = try ternaryExpression <|> logicalOrExpression
+  where
+    ternaryExpression = do
+      e1 <- lexeme logicalOrExpression
+      lexeme $ char '?'
+      e2 <- lexeme expression
+      lexeme $ char ':'
+      e3 <- lexeme conditionalExpression
+      return (Ast.ConditionalExp e1 e2 e3)
 
 logicalOrExpression :: Parser Ast.Exp
 logicalOrExpression = logicalAndExpression `chainl1` logicalOrOp

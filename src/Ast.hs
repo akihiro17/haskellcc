@@ -36,4 +36,5 @@ data Exp = ConstExp Const
            | UnopExp Unop Exp
            | BinOpExp BinOp Exp Exp
            | AssignExp Id Exp
-           | VarExp Id deriving (Show)
+           | VarExp Id
+           | ConditionalExp Exp Exp Exp deriving (Show)

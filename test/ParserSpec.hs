@@ -127,3 +127,9 @@ spec = do
       case i of
         Left a -> error "parse error"
         Right a -> True
+  describe "expression ternary expression" $
+    it "returns Ast" $ do
+      let i = parse Parser.statement "" "1 > 2 ? 0 : 1;"
+      case i of
+        Left a -> error "parse error"
+        Right a -> True

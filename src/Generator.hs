@@ -142,5 +142,15 @@ generateExp (Ast.AssignExp (Ast.Id id) exp) = do
     Just offset -> do
       asm <- generateExp exp
       return (asm ++ "movq %rax, " ++ show offset ++ "(%rbp)\n")
--- runState (generate a) (Data.Map.empty, 0)
--- let (Right a) = parse Parser.program "" "int main() {return 2;}"
+generateExp (Ast.ConditionalExp e1 e2 e3) = do
+  -- create labels
+  (varMap, index) <- get
+  let label1 = "_label" ++ show index
+  let postLabel = "_label" ++ show (index + 1)
+  put(varMap, index + 2)
+
+  e1Asm <- generateExp e1
+  e2Asm <- generateExp e2
+  e3Asm <- generateExp e3
+
+  return (e1Asm ++ "cmpq $0, %rax\nje " ++ label1 ++ "\n" ++ e2Asm ++ "jmp " ++ postLabel ++ "\n" ++ label1 ++ ":\n" ++ e3Asm ++ postLabel ++ ":\n")

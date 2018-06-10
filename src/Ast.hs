@@ -30,7 +30,12 @@ data Statement = Return
                  | ReturnVal Exp
                  | ExpStatement Exp
                  | IfStatement Exp Statement (Maybe Statement)
-                 | CompoundStatement [BlockItem] deriving (Show)
+                 | CompoundStatement [BlockItem]
+                 | WhileStatement Exp Statement
+                 | DoWhileStatement Exp Statement
+                 | ExpOptionStatement (Maybe Exp)
+                 | ForStatement Statement Statement Statement  Statement
+                 | ForWithDeclarationStatement Declaration Statement Statement Statement deriving (Show)
 data Declaration = Declaration Id (Maybe Exp) deriving (Show)
 data Exp = ConstExp Const
            | UnopExp Unop Exp

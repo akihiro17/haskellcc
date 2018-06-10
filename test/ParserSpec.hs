@@ -133,3 +133,27 @@ spec = do
       case i of
         Left a -> error "parse error"
         Right a -> True
+  describe "can Parse while statement" $
+    it "returns Ast" $ do
+      let i = parse Parser.statement "" "while (i > 0) { i = i + 1; };"
+      case i of
+        Left a -> error "parse error"
+        Right a -> True
+  describe "can Parse do while statement" $
+    it "returns Ast" $ do
+      let i = parse Parser.statement "" "do { i = i + 1; } while (i > 0);"
+      case i of
+        Left a -> error "parse error"
+        Right a -> True
+  describe "can Parse for statement" $
+    it "returns Ast" $ do
+      let i = parse Parser.statement "" "for (i = 0; i < 10; i = i + 1) { i = i + 1; }"
+      case i of
+        Left a -> error "parse error"
+        Right a -> True
+  describe "can Parse for with declation statement" $
+    it "returns Ast" $ do
+      let i = parse Parser.statement "" "for (int i = 0; i < 10; i = i + 1) { i = i + 1; }"
+      case i of
+        Left a -> error "parse error"
+        Right a -> True

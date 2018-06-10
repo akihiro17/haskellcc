@@ -13,7 +13,7 @@ import Text.Parsec.Combinator
 import Data.Char
 import Control.Applicative
 import Control.Monad (void)
-import Text.Parsec (digit, letter, oneOf, satisfy, try, string, char, optionMaybe)
+import Text.Parsec (digit, letter, oneOf, satisfy, try, string, char, optionMaybe, anyChar)
 
 lexeme :: Parser a -> Parser a
 lexeme p = do
@@ -73,9 +73,20 @@ statementItem = Ast.StatementItem <$> statement
 declarationItem :: Parser Ast.BlockItem
 declarationItem = Ast.DeclarationItem <$> declaration
 
--- <statement> ::= "return" <exp> ";" | <exp> ";" | "if" "(" <exp> ")" <statement> [ "else" <statement> ] | "{" { <block-item> } "}
+-- <statement> ::= "return" <exp> ";"
+--  | <exp> ";"
+--  | "if" "(" <exp> ")" <statement> [ "else" <statement> ]
+--  | "{" { <block-item> } "}
+--  | "while" "(" <exp> ")" <statement>
 statement :: Parser Ast.Statement
-statement = try returnStatement <|> try expStatement <|> try ifStatement <|> try compoundStatement
+statement = try returnStatement
+  <|> try expStatement
+  <|> try ifStatement
+  <|> try compoundStatement
+  <|> try whileStatement
+  <|> try doWhileStatement
+  <|> try forStatement
+  <|> try forWithDeclarationStatement
 
 returnStatement :: Parser Ast.Statement
 returnStatement = do
@@ -96,10 +107,7 @@ ifStatement :: Parser Ast.Statement
 ifStatement = do
   lexeme $ string "if"
 
-  lexeme openparen
-  exp <- lexeme expression
-  lexeme closeparen
-
+  exp <- openParenExpression
   body <- lexeme statement
 
   ch <- optionMaybe (string "else")
@@ -116,6 +124,74 @@ compoundStatement = do
   blockItems <- try (many $ lexeme blockItem)
   lexeme closebrace
   return (Ast.CompoundStatement blockItems)
+
+whileStatement :: Parser Ast.Statement
+whileStatement = do
+  lexeme $ string "while"
+  exp <- openParenExpression
+  stmt <- lexeme statement
+  return (Ast.WhileStatement exp stmt)
+
+doWhileStatement :: Parser Ast.Statement
+doWhileStatement = do
+  lexeme $ string "do"
+  stmt <- lexeme statement
+
+  lexeme $ string "while"
+  exp <- openParenExpression
+
+  semicolon
+
+  return (Ast.DoWhileStatement exp stmt)
+
+expOptionStatement :: Parser Ast.Statement
+expOptionStatement = do
+  ch <- lookAhead anyChar
+  case ch of
+    ';' -> return (Ast.ExpOptionStatement Nothing)
+    ')' -> return (Ast.ExpOptionStatement Nothing)
+    _ -> Ast.ExpOptionStatement . Just <$> expression
+
+forStatement :: Parser Ast.Statement
+forStatement = do
+  lexeme $ string "for"
+
+  lexeme openparen
+  init <- lexeme expOptionStatement
+  lexeme semicolon
+
+  controlling <- lexeme expOptionStatement
+  lexeme semicolon
+  post <- lexeme expOptionStatement
+  lexeme closeparen
+  stmt <- lexeme statement
+
+  return (Ast.ForStatement init controlling post stmt)
+
+forWithDeclarationStatement :: Parser Ast.Statement
+forWithDeclarationStatement = do
+  lexeme $ string "for"
+
+  lexeme openparen
+  init <- lexeme declaration
+
+  cond <- lexeme expOptionStatement
+  lexeme semicolon
+
+  postExp <- lexeme expOptionStatement
+  lexeme closeparen
+
+  stmt <- lexeme statement
+
+  return (Ast.ForWithDeclarationStatement init cond postExp stmt)
+
+openParenExpression :: Parser Ast.Exp
+openParenExpression = do
+  lexeme openparen
+  exp <- lexeme expression
+  lexeme closeparen
+
+  return exp
 
 -- <declaration> ::= "int" <id> [ = <exp> ] ";"
 declaration :: Parser Ast.Declaration

@@ -67,6 +67,53 @@ generateStatement (Ast.CompoundStatement blockItems) = do
 
   put originalState
   return (asm ++ deallocateAsm)
+generateStatement (Ast.WhileStatement exp statement) = do
+  (varMap, index) <- get
+  let label1 = "_label" ++ show index
+  let label2 = "_label" ++ show (index + 1)
+  put(varMap, index + 2)
+
+  asmExp <- generateExp exp
+  statementAsm <- generateStatement statement
+
+  return (label1 ++ ":\n" ++ asmExp ++ "\ncmpq $0, %rax\nje " ++ label2 ++ "\n" ++ statementAsm ++ "\n" ++ "jmp " ++ label1 ++ "\n" ++ label2 ++ ":\n")
+generateStatement (Ast.DoWhileStatement exp statement) = do
+  (varMap, index) <- get
+  let label1 = "_label" ++ show index
+  put(varMap, index + 1)
+
+  asmExp <- generateExp exp
+  statementAsm <- generateStatement statement
+
+  return (label1 ++ ":\n" ++ statementAsm ++ "\n" ++ asmExp ++ "\ncmpq $0, %rax\njne " ++ label1 ++ "\n")
+generateStatement (Ast.ExpOptionStatement exp) =
+  case exp of
+    Nothing -> return ""
+    Just a -> generateExp a
+generateStatement (Ast.ForStatement init condition postCond statement) = do
+  (varMap, index) <- get
+  let label1 = "_for_init" ++ show index
+  let label2 = "_for_finish" ++ show (index + 1)
+  put(varMap, index + 2)
+
+  initAsm <- generateStatement init
+  condAsm <- generateStatement condition
+  postAsm <- generateStatement postCond
+  stmtAsm <- generateStatement statement
+
+  return (initAsm ++ "\n" ++ label1 ++ ":\n" ++ condAsm ++ "\ncmpq $0, %rax\nje " ++ label2 ++ "\n" ++ stmtAsm ++ "\n" ++ postAsm ++ "\njmp " ++ label1 ++ "\n" ++ label2 ++ ":\n")
+generateStatement (Ast.ForWithDeclarationStatement init cond post statement) = do
+  (varMap, index) <- get
+  let label1 = "_init" ++ show index
+  let label2 = "_finish" ++ show (index + 1)
+  put(varMap, index + 2)
+
+  initAsm <- generateDeclaration init
+  condAsm <- generateStatement cond
+  postAsm <- generateStatement post
+  stmtAsm <- generateStatement statement
+
+  return (initAsm ++ "\n" ++ label1 ++ ":\n" ++ condAsm ++ "\ncmpq $0, %rax\nje " ++ label2 ++ "\n" ++ stmtAsm ++ "\n" ++ postAsm ++ "\njmp " ++ label1 ++ "\n" ++ label2 ++ ":\n")
 
 generateDeclaration :: Ast.Declaration -> State Context String
 generateDeclaration (Ast.Declaration (Ast.Id id) exp) = do

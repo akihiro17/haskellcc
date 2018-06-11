@@ -85,9 +85,9 @@ generateStatement (Ast.WhileStatement exp statement) = do
 
   return asm
 generateStatement (Ast.DoWhileStatement exp statement) = do
-  (varMap, index, endOfTheLoopLabel, labelForContinue) <- get
+  (originalVarMap, index, endOfTheLoopLabel, labelForContinue) <- get
   let label1 = "_label" ++ show index
-  put(varMap, index + 1, endOfTheLoopLabel, labelForContinue)
+  put(originalVarMap, index + 1, endOfTheLoopLabel, labelForContinue)
 
   asmExp <- generateExp exp
   statementAsm <- generateStatement statement
@@ -95,8 +95,8 @@ generateStatement (Ast.DoWhileStatement exp statement) = do
   let asm = label1 ++ ":\n" ++ statementAsm ++ "\n" ++ asmExp ++ "\ncmpq $0, %rax\njne " ++ label1 ++ "\n"
 
   -- ループ終わりのラベルを元に戻す
-  (varMap, index, _, _) <- get
-  put(varMap, index, endOfTheLoopLabel, labelForContinue)
+  (_, index, _, _) <- get
+  put(originalVarMap, index, endOfTheLoopLabel, labelForContinue)
 
   return asm
 generateStatement (Ast.ExpOptionStatement exp) =

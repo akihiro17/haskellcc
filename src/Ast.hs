@@ -35,7 +35,9 @@ data Statement = Return
                  | DoWhileStatement Exp Statement
                  | ExpOptionStatement (Maybe Exp)
                  | ForStatement Statement Statement Statement  Statement
-                 | ForWithDeclarationStatement Declaration Statement Statement Statement deriving (Show)
+                 | ForWithDeclarationStatement Declaration Statement Statement Statement
+                 | BreakStatement
+                 | ContinueStatement deriving (Show)
 data Declaration = Declaration Id (Maybe Exp) deriving (Show)
 data Exp = ConstExp Const
            | UnopExp Unop Exp

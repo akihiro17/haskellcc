@@ -157,3 +157,9 @@ spec = do
       case i of
         Left a -> error "parse error"
         Right a -> True
+  describe "can Parse break statement" $
+    it "returns Ast" $ do
+      let i = parse Parser.statement "" "for (int i = 0; i < 10; i = i + 1) { break; }"
+      case i of
+        Left a -> error "parse error"
+        Right a -> True

@@ -80,6 +80,8 @@ declarationItem = Ast.DeclarationItem <$> declaration
 --  | "while" "(" <exp> ")" <statement>
 statement :: Parser Ast.Statement
 statement = try returnStatement
+  <|> try breakStatement
+  <|> try continueStatement
   <|> try expStatement
   <|> try ifStatement
   <|> try compoundStatement
@@ -87,6 +89,12 @@ statement = try returnStatement
   <|> try doWhileStatement
   <|> try forStatement
   <|> try forWithDeclarationStatement
+  <|> try expOption
+  where
+    expOption = do
+      expOpt <- expOptionStatement
+      semicolon
+      return expOpt
 
 returnStatement :: Parser Ast.Statement
 returnStatement = do
@@ -146,11 +154,12 @@ doWhileStatement = do
 
 expOptionStatement :: Parser Ast.Statement
 expOptionStatement = do
+  whitespace
   ch <- lookAhead anyChar
   case ch of
-    ';' -> return (Ast.ExpOptionStatement Nothing)
+    ';' ->  return (Ast.ExpOptionStatement Nothing)
     ')' -> return (Ast.ExpOptionStatement Nothing)
-    _ -> Ast.ExpOptionStatement . Just <$> expression
+    _ -> Ast.ExpOptionStatement . Just <$> lexeme expression
 
 forStatement :: Parser Ast.Statement
 forStatement = do
@@ -158,10 +167,9 @@ forStatement = do
 
   lexeme openparen
   init <- lexeme expOptionStatement
-  lexeme semicolon
-
+  semicolon
   controlling <- lexeme expOptionStatement
-  lexeme semicolon
+  semicolon
   post <- lexeme expOptionStatement
   lexeme closeparen
   stmt <- lexeme statement
@@ -176,14 +184,19 @@ forWithDeclarationStatement = do
   init <- lexeme declaration
 
   cond <- lexeme expOptionStatement
-  lexeme semicolon
-
+  semicolon
   postExp <- lexeme expOptionStatement
   lexeme closeparen
 
   stmt <- lexeme statement
 
   return (Ast.ForWithDeclarationStatement init cond postExp stmt)
+
+breakStatement :: Parser Ast.Statement
+breakStatement = lexeme $ string "break" >> semicolon >> return Ast.BreakStatement
+
+continueStatement :: Parser Ast.Statement
+continueStatement = lexeme $ string "continue" >> semicolon >> return Ast.ContinueStatement
 
 openParenExpression :: Parser Ast.Exp
 openParenExpression = do

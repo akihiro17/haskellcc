@@ -10,7 +10,8 @@ import Ast
 import qualified Data.Map as Map
 import Control.Monad.State
 
-type Context = (Map.Map String Int, Int)
+-- variable map, stack index, end of the loop label, label for continue
+type Context = (Map.Map String Int, Int, String, String)
 
 generate :: Ast.Program -> State Context String
 generate (Ast.Prog decl) = do
@@ -42,15 +43,15 @@ generateStatement (Ast.IfStatement cond body elseBody) = do
   asmExp <- generateExp cond
   asmStatement <- generateStatement body
 
-  (varMap, index) <- get
-  put(varMap, index + 1)
+  (varMap, index, endOfTheLoopLabel, labelForContinue) <- get
+  put(varMap, index + 1, endOfTheLoopLabel, labelForContinue)
   let postLabel = "_label" ++ show index
 
   case elseBody of
     Nothing -> return (asmExp ++ "cmpq $0, %rax\nje " ++ postLabel ++ "\n" ++ asmStatement ++ "jmp " ++ postLabel ++ "\n" ++ postLabel ++ ":\n")
     Just a -> do
-      (varMap, index) <- get
-      put(varMap, index + 1)
+      (varMap, index, endOfTheLoopLabel, labelForContinue) <- get
+      put(varMap, index + 1, endOfTheLoopLabel, labelForContinue)
       let label1 = "_label" ++ show index
 
       asmElseBody <- generateStatement a
@@ -68,70 +69,111 @@ generateStatement (Ast.CompoundStatement blockItems) = do
   put originalState
   return (asm ++ deallocateAsm)
 generateStatement (Ast.WhileStatement exp statement) = do
-  (varMap, index) <- get
+  (originalVarMap, index, endOfTheLoopLabel, labelForContinue) <- get
   let label1 = "_label" ++ show index
   let label2 = "_label" ++ show (index + 1)
-  put(varMap, index + 2)
+  put(originalVarMap, index + 2, label2, label1)
 
   asmExp <- generateExp exp
   statementAsm <- generateStatement statement
 
-  return (label1 ++ ":\n" ++ asmExp ++ "\ncmpq $0, %rax\nje " ++ label2 ++ "\n" ++ statementAsm ++ "\n" ++ "jmp " ++ label1 ++ "\n" ++ label2 ++ ":\n")
+  let asm = label1 ++ ":\n" ++ asmExp ++ "\ncmpq $0, %rax\nje " ++ label2 ++ "\n" ++ statementAsm ++ "\n" ++ "jmp " ++ label1 ++ "\n" ++ label2 ++ ":\n"
+
+  -- ループ終わりのラベルを元に戻す
+  (_, index, _, _) <- get
+  put(originalVarMap, index, endOfTheLoopLabel, labelForContinue)
+
+  return asm
 generateStatement (Ast.DoWhileStatement exp statement) = do
-  (varMap, index) <- get
+  (varMap, index, endOfTheLoopLabel, labelForContinue) <- get
   let label1 = "_label" ++ show index
-  put(varMap, index + 1)
+  put(varMap, index + 1, endOfTheLoopLabel, labelForContinue)
 
   asmExp <- generateExp exp
   statementAsm <- generateStatement statement
 
-  return (label1 ++ ":\n" ++ statementAsm ++ "\n" ++ asmExp ++ "\ncmpq $0, %rax\njne " ++ label1 ++ "\n")
+  let asm = label1 ++ ":\n" ++ statementAsm ++ "\n" ++ asmExp ++ "\ncmpq $0, %rax\njne " ++ label1 ++ "\n"
+
+  -- ループ終わりのラベルを元に戻す
+  (varMap, index, _, _) <- get
+  put(varMap, index, endOfTheLoopLabel, labelForContinue)
+
+  return asm
 generateStatement (Ast.ExpOptionStatement exp) =
   case exp of
     Nothing -> return ""
     Just a -> generateExp a
 generateStatement (Ast.ForStatement init condition postCond statement) = do
-  (varMap, index) <- get
+  (originalVarMap, index, endOfTheLoopLabel, labelForContinue) <- get
   let label1 = "_for_init" ++ show index
   let label2 = "_for_finish" ++ show (index + 1)
-  put(varMap, index + 2)
+  let postLabel = "_for_post" ++ show (index + 2)
+  -- for break
+  put(originalVarMap, index + 3, label2, postLabel)
 
   initAsm <- generateStatement init
-  condAsm <- generateStatement condition
+  condAsm <- generateCondStatement condition
   postAsm <- generateStatement postCond
   stmtAsm <- generateStatement statement
 
-  return (initAsm ++ "\n" ++ label1 ++ ":\n" ++ condAsm ++ "\ncmpq $0, %rax\nje " ++ label2 ++ "\n" ++ stmtAsm ++ "\n" ++ postAsm ++ "\njmp " ++ label1 ++ "\n" ++ label2 ++ ":\n")
+  let asm = initAsm ++ "\n" ++ label1 ++ ":\n" ++ condAsm ++ "\ncmpq $0, %rax\nje " ++ label2 ++ "\n" ++ stmtAsm ++ "\n" ++ postLabel ++ ":\n"++ postAsm ++ "\njmp " ++ label1 ++ "\n" ++ label2 ++ ":\n"
+
+  -- ループ終わりのラベルを元に戻す
+  (_, indexAfterLoop, _, _) <- get
+  put(originalVarMap, indexAfterLoop, endOfTheLoopLabel, labelForContinue)
+
+  return asm
+
 generateStatement (Ast.ForWithDeclarationStatement init cond post statement) = do
-  (varMap, index) <- get
+  (originalVarMap, index, endOfTheLoopLabel, labelForContinue) <- get
   let label1 = "_init" ++ show index
   let label2 = "_finish" ++ show (index + 1)
-  put(varMap, index + 2)
+  let postLabel = "_for_post" ++ show (index + 2)
+  put(originalVarMap, index + 3, label2, postLabel)
 
   initAsm <- generateDeclaration init
   condAsm <- generateStatement cond
   postAsm <- generateStatement post
   stmtAsm <- generateStatement statement
 
-  return (initAsm ++ "\n" ++ label1 ++ ":\n" ++ condAsm ++ "\ncmpq $0, %rax\nje " ++ label2 ++ "\n" ++ stmtAsm ++ "\n" ++ postAsm ++ "\njmp " ++ label1 ++ "\n" ++ label2 ++ ":\n")
+  let asm = initAsm ++ "\n" ++ label1 ++ ":\n" ++ condAsm ++ "\ncmpq $0, %rax\nje " ++ label2 ++ "\n" ++ stmtAsm ++ "\n" ++ postLabel ++ ":\n" ++ postAsm ++ "\njmp " ++ label1 ++ "\n" ++ label2 ++ ":\n" ++ "pop %rdx\n"
+
+  -- ループ終わりのラベルを元に戻す
+  (_, newIndex, _, _) <- get
+  put(originalVarMap, newIndex, endOfTheLoopLabel, labelForContinue)
+
+  return asm
+
+generateStatement Ast.BreakStatement = do
+  (varMap, index, endOfTheLoopLabel, labelForContinue) <- get
+  return ("jmp " ++ endOfTheLoopLabel ++ "\n")
+
+generateStatement Ast.ContinueStatement = do
+  (varMap, index, endOfTheLoopLabel, labelForContinue) <- get
+  return ("jmp " ++ labelForContinue ++ "\n")
+
+generateCondStatement (Ast.ExpOptionStatement exp) =
+  case exp of
+    Nothing -> return "movq $1, %rax\n"
+    Just a -> generateExp a
 
 generateDeclaration :: Ast.Declaration -> State Context String
 generateDeclaration (Ast.Declaration (Ast.Id id) exp) = do
-  (varMap, index) <- get
+  (varMap, index, endOfTheLoopLabel, labelForContinue) <- get
   let size = Map.size varMap
   let varMap1 = Map.insert id (-size*8 - 8) varMap
-  put (varMap1, index)
+  put (varMap1, index, endOfTheLoopLabel, labelForContinue)
 
   case exp of
     Nothing -> return "movq $0, %rax\npushq %rax\n"
     Just a -> do
       asm <- generateExp a
-      return ( asm ++ "\npushq %rax\n")
+      return ( asm ++ "pushq %rax\n")
 
 generateExp :: Ast.Exp -> State Context String
 generateExp (Ast.ConstExp(Ast.Int value)) = return ("movq $" ++ show value ++ ", %rax\n")
 generateExp (Ast.VarExp (Ast.Id id)) = do
-  (varMap, index) <- get
+  (varMap, index, endOfTheLoopLabel, labelForContinue) <- get
   let offsetKey = Map.lookup id varMap
   case offsetKey of
     Nothing -> error "cannot find var"
@@ -182,7 +224,7 @@ generateExp (Ast.BinOpExp op left right) = do
         Ast.Le -> "setle %al"
   return (leftAssembly ++ "pushq %rax\n" ++ rightAssembly ++ "movq %rax, %rbx\npopq %rcx\nmovq $0, %rax\ncmpq %rbx, %rcx\n" ++ setAsm ++ "\n")
 generateExp (Ast.AssignExp (Ast.Id id) exp) = do
-  (varMap, index) <- get
+  (varMap, index, label, _) <- get
   let offsetKey = Map.lookup id varMap
   case offsetKey of
     Nothing -> error "cannot find var"
@@ -191,10 +233,10 @@ generateExp (Ast.AssignExp (Ast.Id id) exp) = do
       return (asm ++ "movq %rax, " ++ show offset ++ "(%rbp)\n")
 generateExp (Ast.ConditionalExp e1 e2 e3) = do
   -- create labels
-  (varMap, index) <- get
+  (varMap, index, endOfTheLoopLabel, labelForContinue) <- get
   let label1 = "_label" ++ show index
   let postLabel = "_label" ++ show (index + 1)
-  put(varMap, index + 2)
+  put(varMap, index + 2, endOfTheLoopLabel, labelForContinue)
 
   e1Asm <- generateExp e1
   e2Asm <- generateExp e2

@@ -19,6 +19,6 @@ main = do
     Left error -> print error
     Right tokenList ->
       let
-        (assembly, _) = runState (Generator.generate tokenList) (Map.empty, 0)
+        (assembly, _) = runState (Generator.generate tokenList) (Map.empty, 0, "", "")
       in
         writeFile "program.s" assembly

@@ -156,10 +156,16 @@ spec = do
       let i = parse Parser.statement "" "for (int i = 0; i < 10; i = i + 1) { i = i + 1; }"
       case i of
         Left a -> error "parse error"
-        Right a -> True
+        Right Ast.ForWithDeclarationStatement{} -> True
   describe "can Parse break statement" $
     it "returns Ast" $ do
       let i = parse Parser.statement "" "for (int i = 0; i < 10; i = i + 1) { break; }"
       case i of
         Left a -> error "parse error"
-        Right a -> True
+        Right Ast.ForWithDeclarationStatement{} -> True
+  describe "can Parse for empty" $
+    it "returns Ast" $ do
+      let i = parse Parser.statement "" "for (; ; ) ; "
+      case i of
+        Left a -> error "parse error"
+        Right Ast.ForStatement{} -> True

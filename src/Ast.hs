@@ -18,7 +18,7 @@ data Const = Int Int | Char String | String String deriving (Show, Eq)
 data TypeDef = IntType | CharType deriving (Show, Eq)
 newtype Id = Id String deriving (Show, Eq)
 
-data BinOp = Plus | Minus | Multi | Div | Ge | Le | Gt | Lt | Eq | NotEq | And | Or deriving (Show)
+data BinOp = Plus | Minus | Multi | Div | Ge | Le | Gt | Lt | Eq | NotEq | And | Or | Mod deriving (Show)
 data Unop = Negate | Complement | Not deriving (Show)
 
 newtype Program = Prog FuncDecl deriving (Show)

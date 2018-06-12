@@ -10,7 +10,7 @@ import Ast
 import qualified Data.Map as Map
 import Control.Monad.State
 
--- variable map, stack index, end of the loop label, label for continue
+-- variable map, label index, end of the loop label, label for continue
 type Context = (Map.Map String Int, Int, String, String)
 
 generate :: Ast.Program -> State Context String
@@ -97,8 +97,8 @@ generateStatement (Ast.DoWhileStatement exp statement) = do
 
   -- ループ終わりのラベルを元に戻す
   -- ループで新しく宣言されたローカル変数はここでスコープから外れる
-  (_, index, _, _) <- get
-  put(originalVarMap, index, endOfTheLoopLabel, labelForContinue)
+  (_, indexAfterWhileLoop, _, _) <- get
+  put(originalVarMap, indexAfterWhileLoop, endOfTheLoopLabel, labelForContinue)
 
   return asm
 generateStatement (Ast.ExpOptionStatement exp) =
@@ -217,6 +217,11 @@ generateExp (Ast.BinOpExp Ast.And left right) = do
   rightAssembly <- generateExp right
 
   return (leftAssembly ++ "pushq %rax\n" ++ rightAssembly ++ "popq %rcx\ncmpq $0, %rcx\nsetne %cl\ncmpq $0, %rax\nsetne %al\nandb %cl, %al\n")
+generateExp (Ast.BinOpExp Ast.Mod left right) = do
+  leftAssembly <- generateExp left
+  rightAssembly <- generateExp right
+
+  return (leftAssembly ++ "pushq %rax\n" ++ rightAssembly ++ "movq %rax, %rcx\npopq %rax\nmovq $0, %rdx\nidivq %rcx, %rax\nmovq %rdx, %rax\n")
 generateExp (Ast.BinOpExp op left right) = do
   leftAssembly <- generateExp left
   rightAssembly <- generateExp right

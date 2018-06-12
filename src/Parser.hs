@@ -315,11 +315,12 @@ term :: Parser Ast.Exp
 term = factor `chainl1` mulOp
   where
     mulOp = do
-      op <- char '*' <|> char '/'
+      op <- char '*' <|> char '/' <|> char '%'
       whitespace
       case op of
         '*' -> return (Ast.BinOpExp Ast.Multi)
         '/' -> return (Ast.BinOpExp Ast.Div)
+        '%' -> return (Ast.BinOpExp Ast.Mod)
 
 -- <factor> ::= "(" <exp> ")" | <unary_op> <factor> | <int> | <id>
 factor :: Parser Ast.Exp

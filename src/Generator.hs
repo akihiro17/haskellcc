@@ -80,6 +80,7 @@ generateStatement (Ast.WhileStatement exp statement) = do
   let asm = label1 ++ ":\n" ++ asmExp ++ "\ncmpq $0, %rax\nje " ++ label2 ++ "\n" ++ statementAsm ++ "\n" ++ "jmp " ++ label1 ++ "\n" ++ label2 ++ ":\n"
 
   -- ループ終わりのラベルを元に戻す
+  -- ループで新しく宣言されたローカル変数はここでスコープから外れる
   (_, index, _, _) <- get
   put(originalVarMap, index, endOfTheLoopLabel, labelForContinue)
 
@@ -95,6 +96,7 @@ generateStatement (Ast.DoWhileStatement exp statement) = do
   let asm = label1 ++ ":\n" ++ statementAsm ++ "\n" ++ asmExp ++ "\ncmpq $0, %rax\njne " ++ label1 ++ "\n"
 
   -- ループ終わりのラベルを元に戻す
+  -- ループで新しく宣言されたローカル変数はここでスコープから外れる
   (_, index, _, _) <- get
   put(originalVarMap, index, endOfTheLoopLabel, labelForContinue)
 
@@ -119,6 +121,7 @@ generateStatement (Ast.ForStatement init condition postCond statement) = do
   let asm = initAsm ++ "\n" ++ label1 ++ ":\n" ++ condAsm ++ "\ncmpq $0, %rax\nje " ++ label2 ++ "\n" ++ stmtAsm ++ "\n" ++ postLabel ++ ":\n"++ postAsm ++ "\njmp " ++ label1 ++ "\n" ++ label2 ++ ":\n"
 
   -- ループ終わりのラベルを元に戻す
+  -- ループで新しく宣言されたローカル変数はここでスコープから外れる
   (_, indexAfterLoop, _, _) <- get
   put(originalVarMap, indexAfterLoop, endOfTheLoopLabel, labelForContinue)
 
@@ -136,9 +139,11 @@ generateStatement (Ast.ForWithDeclarationStatement init cond post statement) = d
   postAsm <- generateStatement post
   stmtAsm <- generateStatement statement
 
+  -- for()内のローカル変数のdeallocateをする
   let asm = initAsm ++ "\n" ++ label1 ++ ":\n" ++ condAsm ++ "\ncmpq $0, %rax\nje " ++ label2 ++ "\n" ++ stmtAsm ++ "\n" ++ postLabel ++ ":\n" ++ postAsm ++ "\njmp " ++ label1 ++ "\n" ++ label2 ++ ":\n" ++ "pop %rdx\n"
 
   -- ループ終わりのラベルを元に戻す
+  -- ループで新しく宣言されたローカル変数はここでスコープから外れる
   (_, newIndex, _, _) <- get
   put(originalVarMap, newIndex, endOfTheLoopLabel, labelForContinue)
 
